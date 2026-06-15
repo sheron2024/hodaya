@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>לונה -- חד הקרן האבוד</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0a0a1a; color:#fff; font-family:'Heebo',Arial,sans-serif; overflow:hidden; direction:rtl; }
+canvas { display:block; }
+#hud { position:absolute; top:14px; right:14px; background:rgba(0,0,0,0.78); border:1px solid #9b59b6; border-radius:14px; padding:12px 16px; min-width:185px; }
+#hud .wn { font-size:12px; color:#c39bd3; margin-bottom:3px; }
+#hud .pn { font-size:15px; font-weight:bold; color:#f8c8ff; }
+#hud .bars { display:flex; gap:10px; margin-top:7px; align-items:center; }
+#hud .bar { width:62px; height:6px; background:#333; border-radius:3px; overflow:hidden; }
+#hud .bf { height:100%; border-radius:3px; transition:width 0.3s; }
+#sp-bar { background:#e74c9f; width:100%; }
+#mp-bar { background:#9b59b6; width:80%; }
+#sparks { margin-top:5px; font-size:12px; color:#f8c8ff; }
+
+#narrator { position:absolute; top:14px; left:50%; transform:translateX(-50%); width:min(480px,86vw);
+  background:rgba(20,8,40,0.95); border:1px solid #9b59b6; border-radius:14px;
+  padding:14px 20px; display:none; z-index:5; text-align:center; }
+#narrator-text { font-size:14px; color:#e8d5ff; line-height:1.7; font-style:italic; }
+
+#dialog { position:absolute; bottom:100px; left:50%; transform:translateX(-50%);
+  width:min(520px,90vw); background:rgba(10,4,28,0.97); border:2px solid #9b59b6;
+  border-radius:16px; padding:18px 22px; display:none; }
+#dlg-top { display:flex; align-items:center; gap:12px; margin-bottom:10px; flex-direction:row-reverse; }
+#dlg-portrait { font-size:36px; line-height:1; }
+#dlg-name { font-size:13px; color:#c39bd3; font-weight:bold; }
+#dlg-ind { display:none; gap:3px; align-items:center; }
+#dlg-ind span { display:inline-block; width:4px; height:14px; background:#9b59b6; border-radius:2px; animation:wave .8s infinite; }
+#dlg-ind span:nth-child(2){ animation-delay:.15s; height:20px; }
+#dlg-ind span:nth-child(3){ animation-delay:.3s; }
+@keyframes wave{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.8)}}
+#dlg-text { font-size:18px; line-height:1.65; color:#f0e8ff; font-family:'Heebo',Arial,sans-serif; }
+#dlg-hint { margin-top:8px; font-size:14px; color:#9b59b6; animation:pulse 1.5s infinite; font-family:'Heebo',Arial,sans-serif; }
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+#puzzle { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:min(500px,92vw); background:rgba(6,3,22,0.98); border:2px solid #9b59b6;
+  border-radius:18px; padding:24px; display:none; z-index:10; max-height:90vh; overflow-y:auto; }
+#pz-title { font-size:17px; color:#f8c8ff; margin-bottom:6px; }
+#pz-desc { font-size:13px; color:#c39bd3; margin-bottom:14px; line-height:1.5; }
+#pz-area { }
+#pz-fb { min-height:20px; font-size:14px; margin-top:10px; }
+#pz-fb.ok { color:#5dcaa5; } #pz-fb.fail { color:#e74c3c; }
+
+#spark-pop { position:absolute; top:110px; left:50%; transform:translateX(-50%);
+  background:linear-gradient(135deg,#9b59b6,#e74c9f); border-radius:20px;
+  padding:12px 26px; font-size:15px; display:none; z-index:20; text-align:center; pointer-events:none; }
+#notif { position:absolute; top:72px; left:50%; transform:translateX(-50%);
+  background:rgba(155,89,182,.9); border-radius:20px; padding:7px 18px;
+  font-size:13px; opacity:0; transition:opacity .4s; white-space:nowrap; pointer-events:none; }
+#notif.show { opacity:1; }
+#near { position:absolute; bottom:160px; left:50%; transform:translateX(-50%);
+  background:rgba(155,89,182,.85); border-radius:20px; padding:6px 16px; font-size:13px; display:none; }
+
+#map { position:absolute; bottom:14px; left:14px; background:rgba(0,0,0,.65);
+  border:1px solid #9b59b6; border-radius:12px; padding:9px 13px; }
+#map .mt { font-size:11px; color:#9b59b6; margin-bottom:5px; }
+#map .dots { display:flex; gap:7px; }
+.dot { width:10px; height:10px; border-radius:50%; background:#333; border:1px solid #555; }
+.dot.v { background:#9b59b6; border-color:#c39bd3; }
+.dot.c { background:#f8c8ff; border-color:#fff; }
+
+#btns { position:absolute; top:14px; left:14px; display:flex; flex-direction:column; gap:5px; }
+#btns button { border:none; color:white; padding:8px 13px; border-radius:8px; font-size:12px; cursor:pointer; }
+#snd-btn { background:rgba(155,89,182,.6); }
+#quit-btn { background:rgba(160,30,60,.7); }
+
+#pad { position:absolute; bottom:80px; right:14px; display:grid;
+  grid-template-columns:repeat(3,44px); grid-template-rows:repeat(3,44px); gap:4px; }
+#pad button { background:rgba(155,89,182,.5); border:1px solid #9b59b6;
+  color:white; border-radius:8px; font-size:18px; cursor:pointer; }
+#pad button:active { background:rgba(155,89,182,.9); }
+.empty { background:none!important; border:none!important; }
+#hint { position:absolute; bottom:14px; right:14px; background:rgba(0,0,0,.5);
+  border:1px solid #333; border-radius:10px; padding:7px 11px; font-size:11px; color:#888; }
+#hint div { margin:2px 0; }
+#flash { position:absolute; inset:0; background:white; opacity:0; pointer-events:none; transition:opacity .4s; }
+
+#quit-screen { position:absolute; inset:0; background:rgba(0,0,0,.93);
+  display:none; z-index:100; flex-direction:column; align-items:center; justify-content:center; gap:16px; }
+#quit-screen h2 { color:#f8c8ff; font-size:21px; }
+#quit-screen button { padding:10px 26px; border-radius:10px; font-size:14px; cursor:pointer; border:none; color:white; }
+
+/* Pipe puzzle */
+.pipe-grid { display:grid; gap:3px; margin:0 auto 8px; }
+.pipe-cell { width:54px; height:54px; background:rgba(155,89,182,.15); border:1px solid #533;
+  border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  font-size:22px; font-family:monospace; transition:all .2s; user-select:none; }
+.pipe-cell:hover { background:rgba(155,89,182,.35); }
+.pipe-cell.lit { background:rgba(93,202,165,.3); border-color:#5dcaa5; }
+
+/* Gear puzzle */
+.gear-slots { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-bottom:10px; }
+.gear-slot { width:68px; height:68px; border:2px dashed #9b59b6; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; font-size:13px; color:#9b59b6;
+  background:rgba(155,89,182,.1); cursor:pointer; transition:all .2s; }
+.gear-slot.filled { border-color:#5dcaa5; background:rgba(93,202,165,.2); font-size:30px; color:white; }
+.gear-tray { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+.gear-piece { width:58px; height:58px; border:2px solid #9b59b6; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; font-size:26px;
+  background:rgba(155,89,182,.25); cursor:pointer; transition:all .2s; }
+.gear-piece:hover { background:rgba(155,89,182,.5); transform:scale(1.1); }
+.gear-piece.used { opacity:.3; cursor:not-allowed; transform:none; }
+.gear-piece.selected { border-color:#5dcaa5; background:rgba(93,202,165,.3); }
+
+/* Q buttons */
+.q-btn { display:block; width:100%; margin:6px 0; padding:10px 13px;
+  background:rgba(155,89,182,.2); border:1px solid #9b59b6; color:#f0e8ff;
+  border-radius:9px; cursor:pointer; font-size:14px; text-align:right; transition:background .2s; }
+.q-btn:hover { background:rgba(155,89,182,.5); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="flash"></div>
+
+<div id="hud">
+  <div class="wn" id="wname">עולם הענן הכחול</div>
+  <div class="pn">&#127984; לונה -- חד הקרן</div>
+  <div class="bars">
+    <span style="font-size:11px;color:#e74c9f">&#9829;</span>
+    <div class="bar"><div class="bf" id="sp-bar"></div></div>
+    <span style="font-size:11px;color:#9b59b6">&#10022;</span>
+    <div class="bar"><div class="bf" id="mp-bar"></div></div>
+  </div>
+  <div id="sparks">ניצוצות: 0/5 &#10024;</div>
+</div>
+
+<div id="narrator"><div id="narrator-text"></div></div>
+
+<div id="map">
+  <div class="mt">מפת העולמות</div>
+  <div class="dots">
+    <div class="dot c" id="d0"></div>
+    <div class="dot" id="d1"></div>
+    <div class="dot" id="d2"></div>
+    <div class="dot" id="d3"></div>
+    <div class="dot" id="d4"></div>
+  </div>
+</div>
+
+<div id="btns">
+  <button id="snd-btn" onclick="toggleSound()">&#128266; צליל: פועל</button>
+  <button id="quit-btn" onclick="showQuit()">&#10005; יציאה</button>
+</div>
+
+<div id="hint">
+  <div>W/A/S/D -- תנועה</div>
+  <div>עכבר -- מצלמה</div>
+  <div>E -- שיחה</div>
+  <div>Q -- עולם הבא</div>
+</div>
+
+<div id="pad">
+  <div class="empty"></div>
+  <button onmousedown="K.w=true" onmouseup="K.w=false" ontouchstart="K.w=true" ontouchend="K.w=false">&#9650;</button>
+  <div class="empty"></div>
+  <button onmousedown="K.a=true" onmouseup="K.a=false" ontouchstart="K.a=true" ontouchend="K.a=false">&#9664;</button>
+  <button onmousedown="K.s=true" onmouseup="K.s=false" ontouchstart="K.s=true" ontouchend="K.s=false">&#9660;</button>
+  <button onmousedown="K.d=true" onmouseup="K.d=false" ontouchstart="K.d=true" ontouchend="K.d=false">&#9654;</button>
+  <div class="empty"></div>
+  <button onmousedown="interact()">E</button>
+  <div class="empty"></div>
+</div>
+
+<div id="near">לחצי E לשיחה &#128172;</div>
+<div id="notif"></div>
+<div id="spark-pop"></div>
+
+<!-- Big interact button for Quest / mobile -->
+<div id="interact-btn" onclick="interact()" style="position:absolute;bottom:170px;left:50%;transform:translateX(-50%);background:rgba(155,89,182,0.9);border:2px solid #f8c8ff;border-radius:50px;padding:14px 32px;font-size:16px;cursor:pointer;display:none;z-index:15;user-select:none;">
+  &#128172; המשך / שיחה
+</div>
+
+<div id="dialog">
+  <div id="dlg-top">
+    <div id="dlg-portrait">&#128025;</div>
+    <div>
+      <div id="dlg-name"></div>
+      <div id="dlg-ind"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+  <div id="dlg-text"></div>
+  <div id="dlg-hint">לחצי E להמשך...</div>
+</div>
+
+<div id="puzzle">
+  <div id="pz-title"></div>
+  <div id="pz-desc"></div>
+  <div id="pz-area"></div>
+  <div id="pz-fb"></div>
+</div>
+
+<div id="quit-screen">
+  <h2>&#127984; השהיית המסע</h2>
+  <p style="color:#c39bd3">ניצוצות: <span id="qs-sp">0</span>/5</p>
+  <div style="display:flex;gap:12px">
+    <button style="background:#9b59b6" onclick="hideQuit()">&#9654; המשך</button>
+    <button style="background:#a32d2d" onclick="quitGame()">&#10005; יציאה</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// =========== AUDIO ===========
+let audioCtx=null, masterGain=null, bgNodes=[], bgGain=null;
+let soundEnabled=true, footTimer=0, ttsTimer=null;
+
+function initAudio(){
+  if(audioCtx) return;
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  masterGain=audioCtx.createGain(); masterGain.gain.value=0.4;
+  masterGain.connect(audioCtx.destination);
+}
+
+function toggleSound(){
+  soundEnabled=!soundEnabled;
+  if(masterGain) masterGain.gain.value=soundEnabled?0.4:0;
+  if(!soundEnabled){ stopBg(); stopSpeech(); }
+  document.getElementById('snd-btn').textContent=soundEnabled?'\uD83D\uDD0A \u05E6\u05DC\u05D9\u05DC: \u05E4\u05D5\u05E2\u05DC':'\uD83D\uDD07 \u05E6\u05DC\u05D9\u05DC: \u05DB\u05D1\u05D5\u05D9';
+}
+
+const MELODIES=[
+  [264,330,396,440,396,330,264,220,264,330,396,523],
+  [220,277,330,369,330,277,220,185,220,277,330,440],
+  [523,659,784,880,784,659,523,440,523,659,784,1046],
+  [293,349,415,466,415,349,293,247,293,349,415,587],
+  [349,440,523,587,523,440,349,294,349,440,523,698],
+];
+
+function playBg(idx){
+  stopBg();
+  if(!audioCtx||!soundEnabled) return;
+  const g=audioCtx.createGain();
+  g.gain.setValueAtTime(0,audioCtx.currentTime);
+  g.gain.linearRampToValueAtTime(1,audioCtx.currentTime+2.5);
+  g.connect(masterGain);
+  const mel=MELODIES[idx]; const nodes=[];
+  let alive=true;
+  function loop(st){
+    if(!alive) return;
+    mel.forEach((f,i)=>{
+      const t=st+i*1.3;
+      const o=audioCtx.createOscillator(),gn=audioCtx.createGain();
+      o.type='sine'; o.frequency.value=f;
+      gn.gain.setValueAtTime(0,t);
+      gn.gain.linearRampToValueAtTime(0.065,t+0.2);
+      gn.gain.setValueAtTime(0.065,t+0.85);
+      gn.gain.linearRampToValueAtTime(0,t+1.25);
+      o.connect(gn); gn.connect(g);
+      o.start(t); o.stop(t+1.3); nodes.push(o);
+    });
+    setTimeout(()=>{if(alive)loop(audioCtx.currentTime);},mel.length*1.3*1000+1800);
+  }
+  loop(audioCtx.currentTime+0.5);
+  const bass=audioCtx.createOscillator(),bg2=audioCtx.createGain();
+  bass.type='sine'; bass.frequency.value=mel[0]/2; bg2.gain.value=0.018;
+  bass.connect(bg2); bg2.connect(g); bass.start(); nodes.push(bass);
+  bgNodes=nodes; bgGain=g; bgGain._kill=()=>{alive=false;};
+}
+
+function stopBg(){
+  if(bgGain){
+    try{bgGain.gain.linearRampToValueAtTime(0,audioCtx.currentTime+1);}catch(e){}
+    if(bgGain._kill)bgGain._kill();
+  }
+  const n=bgNodes;
+  setTimeout(()=>n.forEach(x=>{try{x.stop();}catch(e){}}),1100);
+  bgNodes=[]; bgGain=null;
+}
+
+function sfx(type){
+  if(!audioCtx||!soundEnabled) return;
+  const t=audioCtx.currentTime;
+  if(type==='step'){
+    const buf=audioCtx.createBuffer(1,Math.floor(audioCtx.sampleRate*0.05),audioCtx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*(1-i/d.length)*0.4;
+    const s=audioCtx.createBufferSource(),g=audioCtx.createGain();
+    g.gain.value=0.06; s.buffer=buf; s.connect(g); g.connect(masterGain); s.start();
+  } else if(type==='portal'){
+    [300,500,800,1200,1800].forEach((f,i)=>{
+      const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.type='sine'; o.frequency.value=f;
+      g.gain.setValueAtTime(0.09,t+i*0.08); g.gain.linearRampToValueAtTime(0,t+i*0.08+0.5);
+      o.connect(g); g.connect(masterGain); o.start(t+i*0.08); o.stop(t+i*0.08+0.6);
+    });
+  } else if(type==='win'){
+    [523,659,784,1046,1318].forEach((f,i)=>{
+      const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.type='sine'; o.frequency.value=f;
+      g.gain.setValueAtTime(0.1,t+i*0.09); g.gain.linearRampToValueAtTime(0,t+i*0.09+0.5);
+      o.connect(g); g.connect(masterGain); o.start(t+i*0.09); o.stop(t+i*0.09+0.6);
+    });
+  } else if(type==='fail'){
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(400,t); o.frequency.linearRampToValueAtTime(200,t+0.4);
+    g.gain.setValueAtTime(0.08,t); g.gain.linearRampToValueAtTime(0,t+0.45);
+    o.connect(g); g.connect(masterGain); o.start(t); o.stop(t+0.5);
+  } else if(type==='click'){
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(600,t); o.frequency.linearRampToValueAtTime(900,t+0.08);
+    g.gain.setValueAtTime(0.06,t); g.gain.linearRampToValueAtTime(0,t+0.12);
+    o.connect(g); g.connect(masterGain); o.start(t); o.stop(t+0.15);
+  }
+}
+
+// =========== TTS via Google Cloud ===========
+const GKEY='AIzaSyAm2OQurmH_lzFJioj2qALN7CJh3a34sUE';
+const HE_VOICES=['he-IL-Standard-A','he-IL-Standard-B','he-IL-Standard-C','he-IL-Standard-D','he-IL-Standard-A','he-IL-Standard-B'];
+const PITCH_CFG=[-4.0, 4.0, -1.0, 2.0, 1.0, 0.0];
+const RATE_CFG= [0.78, 1.0,  0.82, 0.72, 0.70, 0.78];
+let dialogReady=false;
+let currentAudio=null;
+
+async function speakAndWait(text,vi,onDone){
+  if(!soundEnabled){ if(onDone)setTimeout(onDone,500); return; }
+  stopSpeech();
+  showInd(true);
+  try {
+    const res=await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key='+GKEY,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        input:{text:text},
+        voice:{languageCode:'he-IL',name:HE_VOICES[vi||0]},
+        audioConfig:{audioEncoding:'MP3',pitch:PITCH_CFG[vi||0],speakingRate:RATE_CFG[vi||0]}
+      })
+    });
+    const data=await res.json();
+    if(data.audioContent){
+      const audio=new Audio('data:audio/mp3;base64,'+data.audioContent);
+      currentAudio=audio;
+      audio.onended=()=>{ showInd(false); currentAudio=null; if(onDone)onDone(); };
+      audio.onerror=()=>{ showInd(false); currentAudio=null; if(onDone)onDone(); };
+      audio.play();
+    } else {
+      showInd(false);
+      if(onDone) setTimeout(onDone,Math.max(2000,text.length*60));
+    }
+  } catch(e){
+    showInd(false);
+    if(onDone) setTimeout(onDone,Math.max(2000,text.length*60));
+  }
+}
+
+function stopSpeech(){
+  if(currentAudio){try{currentAudio.pause();}catch(e){} currentAudio=null;}
+  showInd(false);
+}
+
+function showInd(v){
+  const el=document.getElementById('dlg-ind');
+  if(el)el.style.display=v?'flex':'none';
+}
+
+// =========== NARRATOR ===========
+function narrate(text,dur){
+  dur=dur||Math.max(5000,text.length*80);
+  const el=document.getElementById('narrator');
+  document.getElementById('narrator-text').textContent=text;
+  el.style.display='block';
+  speakAndWait(text,5,()=>{});
+  setTimeout(()=>el.style.display='none',dur);
+}
+
+// =========== GAME STATE ===========
+let sparks=0, sp_val=100, mp_val=80;
+let worldIdx=0, gameActive=true;
+let dialogOn=false, puzzleOn=false;
+let dQueue=[], dIdx=0, curNPC=null;
+let worldObjs=[], npcList=[], floaters=[], birds=[];
+let lunaMesh=null, lunaAngle=0;
+let camDist=5, camHeight=3;
+
+const WORLDS=[
+  {name:'עולם הענן הכחול',   sky:0x0d1b4a,ground:0x1a2a6e,fog:0x0d1540,amb:0x1a2880,nc:0x88ccff,hasTrees:true, hasSea:false,hasBirds:true,
+   story:'לונה, חד הקרן הקסומה, נכנסת לעולם הענן הכחול. ערפל כסוף מכסה הכל, וקול עמוק מהדהד מבין העננים...'},
+  {name:'יערות הפיות',        sky:0x1a0a00,ground:0x2d1500,fog:0x3a1000,amb:0x6b2a00,nc:0xff9944,hasTrees:true, hasSea:false,hasBirds:false,
+   story:'היער בוער בצבעי זהב. פיה קטנה ושובבה מרחפת בין העצים, מחכה לאתגר את לונה...'},
+  {name:'ממלכת הקריסטלים',   sky:0x001525,ground:0x002a44,fog:0x001828,amb:0x005580,nc:0x44aaff,hasTrees:false,hasSea:true, hasBirds:true,
+   story:'גבישים ענקיים מנצנצים בכל עבר. מלך הקריסטל יושב על כסאו ועיניו עצובות...'},
+  {name:'ארץ השעונים',        sky:0x100820,ground:0x1e1030,fog:0x140a28,amb:0x3a1060,nc:0xdd88ff,hasTrees:false,hasSea:false,hasBirds:false,
+   story:'גלגלי שיניים ענקיים סובבים לאיטם. שעון קסום עם פנים אנושיות מחייך אל לונה...'},
+  {name:'גן הנצח',            sky:0x021208,ground:0x042a10,fog:0x031508,amb:0x0a3a18,nc:0x88ff66,hasTrees:true, hasSea:true, hasBirds:true,
+   story:'פרחים זוהרים בצבעים שלונה מעולם לא ראתה. פרח ענק פותח עלי כותרתו ומדבר בחום...'},
+];
+
+const NPCS=[
+  {world:0,pos:[5,0,-6], color:0x4488ff,emoji:'🐉',name:'גלאדוס -- דרקון הענן',vi:0,
+   dialog:['שלום לך, לונה! שמי גלאדוס, שומר שמי הכחול.','הניצוץ שלי יחזיר לך חלק מכוח הקרן...','אך תחילה -- פתרי את חידת הצינורות!'],
+   puzzle:{type:'pipes',title:'חידת הצינורות של גלאדוס',desc:'סובבי את הצינורות כך שכולם יהיו מחוברים. לחצי על כל תא לסובב אותו.'}},
+  {world:1,pos:[-5,0,-5],color:0xff8844,emoji:'🧚',name:'פיה הלהבה',vi:1,
+   dialog:['היי! חד קרן בלי קרן! כמה מצחיק!','אל תיעצבי -- אני יכולה לעזור!','הרכיבי את הגלגלים שלי בסדר הנכון!'],
+   puzzle:{type:'gears',title:'גלגלי הפיה',desc:'הרכיבי את 4 גלגלי השיניים בסדר: גדול, בינוני, קטן, זעיר -- לחצי על גלגל ואז על חריץ.'}},
+  {world:2,pos:[6,0,4],  color:0x44aaff,emoji:'👑',name:'מלך הקריסטל',vi:2,
+   dialog:['ברוכה הבאה, לונה. ראיתי את בואך בקריסטלי הנבואה.','הניצוץ שלי מוסתר בחידה עתיקה.','ענה נכון ותקבלי אותו.'],
+   puzzle:{type:'q',title:'חידת הקריסטל',desc:'איזה קריסטל הוא הקשה ביותר בטבע?',
+     opts:['יהלום','אמרלד','סנפיר','קוורץ'],cor:0}},
+  {world:3,pos:[0,0,-7], color:0xdd88ff,emoji:'⏰',name:'שעון הנצח',vi:3,
+   dialog:['טיק... טק! ברוכה הבאה ללונה!','גלגלי השיניים שלי אבדו והזמן נשבר!','עזרי לי להרכיב אותם!'],
+   puzzle:{type:'gears',title:'גלגלי השעון',desc:'הרכיבי את גלגלי השיניים בסדר הנכון כדי שהשעון יחזור לפעול.'}},
+  {world:4,pos:[0,0,-4], color:0x88ff66,emoji:'🌸',name:'פרח הנצח',vi:4,
+   dialog:['לונה... הגעת סוף סוף.','חיכיתי לך כבר אלף שנה.','ענה על שאלת הלב האחרונה ותהיי שלמה שוב.'],
+   puzzle:{type:'q',title:'שאלת הלב',desc:'מה הדבר החזק ביותר בעולם?',
+     opts:['זהב','אהבה','קסם','חרב'],cor:1}},
+];
+
+// =========== THREE.JS ===========
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.shadowMap.enabled=true;
+const scene=new THREE.Scene();
+
+// Third-person camera
+const camera=new THREE.PerspectiveCamera(70,window.innerWidth/window.innerHeight,0.1,200);
+scene.add(camera);
+
+const clock=new THREE.Clock();
+const K={w:false,a:false,s:false,d:false};
+let camYaw=Math.PI, locked=false;
+
+// =========== LUNA MODEL ===========
+function buildLuna(){
+  const g=new THREE.Group();
+  const white=new THREE.MeshLambertMaterial({color:0xfff8ff,emissive:0xffe8ff,emissiveIntensity:0.15});
+  const pink=new THREE.MeshLambertMaterial({color:0xff88cc,emissive:0xff44aa,emissiveIntensity:0.3});
+  const purple=new THREE.MeshLambertMaterial({color:0xcc66ff,emissive:0xaa33ff,emissiveIntensity:0.3});
+  const blue=new THREE.MeshLambertMaterial({color:0x88ccff,emissive:0x44aaff,emissiveIntensity:0.3});
+  const gold=new THREE.MeshLambertMaterial({color:0xffd700,emissive:0xffaa00,emissiveIntensity:0.6});
+  const darkW=new THREE.MeshLambertMaterial({color:0xeeddff});
+
+  // Body
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.32,0.9,10),white);
+  body.position.y=0.65; body.rotation.z=0.0; g.add(body);
+  // Belly
+  const belly=new THREE.Mesh(new THREE.SphereGeometry(0.24,8,6),new THREE.MeshLambertMaterial({color:0xffeeff}));
+  belly.position.y=0.5; belly.scale.set(0.9,0.7,1.1); g.add(belly);
+  // Neck
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.2,0.5,8),white);
+  neck.position.set(0,1.1,0.15); neck.rotation.x=-0.3; g.add(neck);
+  // Head
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.22,12,10),white);
+  head.position.set(0,1.38,0.28); head.scale.set(1,0.9,1.15); g.add(head);
+  // Snout
+  const snout=new THREE.Mesh(new THREE.SphereGeometry(0.13,8,6),new THREE.MeshLambertMaterial({color:0xffeeee}));
+  snout.position.set(0,1.3,0.46); snout.scale.set(0.9,0.7,0.8); g.add(snout);
+  // Nostrils
+  [-0.05,0.05].forEach(x=>{
+    const n=new THREE.Mesh(new THREE.SphereGeometry(0.025,4,4),new THREE.MeshLambertMaterial({color:0xffaaaa}));
+    n.position.set(x,1.27,0.54); g.add(n);
+  });
+  // Eyes
+  [-0.1,0.1].forEach(x=>{
+    const ew=new THREE.Mesh(new THREE.SphereGeometry(0.06,8,8),new THREE.MeshLambertMaterial({color:0x8833ff,emissive:0x6600cc,emissiveIntensity:0.4}));
+    ew.position.set(x,1.4,0.45); g.add(ew);
+    const ep=new THREE.Mesh(new THREE.SphereGeometry(0.03,6,6),new THREE.MeshLambertMaterial({color:0x111111}));
+    ep.position.set(x,1.4,0.5); g.add(ep);
+    // Eyelash
+    const el=new THREE.Mesh(new THREE.SphereGeometry(0.065,6,4),new THREE.MeshLambertMaterial({color:0xcc88ff,transparent:true,opacity:0.5}));
+    el.position.set(x,1.43,0.44); el.scale.set(1,0.4,1); g.add(el);
+  });
+  // Horn
+  const horn=new THREE.Mesh(new THREE.ConeGeometry(0.05,0.55,8),gold);
+  horn.position.set(0,1.68,0.28); horn.rotation.x=0.3; g.add(horn);
+  // Horn glow
+  const hornGlow=new THREE.Mesh(new THREE.ConeGeometry(0.08,0.6,8),
+    new THREE.MeshLambertMaterial({color:0xffdd00,transparent:true,opacity:0.3,emissive:0xffaa00,emissiveIntensity:0.5}));
+  hornGlow.position.set(0,1.7,0.28); hornGlow.rotation.x=0.3; g.add(hornGlow);
+  // Ears
+  [-0.15,0.15].forEach((x,i)=>{
+    const ear=new THREE.Mesh(new THREE.ConeGeometry(0.06,0.18,6),[white,pink][i>0?0:0]);
+    ear.position.set(x,1.6,0.2); ear.rotation.z=x>0?0.4:-0.4; g.add(ear);
+    const earIn=new THREE.Mesh(new THREE.ConeGeometry(0.03,0.12,4),pink);
+    earIn.position.set(x,1.6,0.2); earIn.rotation.z=x>0?0.4:-0.4; g.add(earIn);
+  });
+  // Mane
+  const maneColors=[pink,purple,blue,pink,purple];
+  [[-0.08,1.55,0.05],[0.08,1.5,0.02],[0,1.45,-0.05],[-0.06,1.3,-0.08],[0.06,1.2,-0.1]].forEach(([x,y,z],i)=>{
+    const m=new THREE.Mesh(new THREE.SphereGeometry(0.1+i*0.01,6,5),maneColors[i]);
+    m.position.set(x,y,z); m.scale.set(0.8,1.2,0.7); g.add(m);
+  });
+  // Legs
+  const legPos=[[-0.18,0,0.18],[0.18,0,0.18],[-0.16,0,-0.18],[0.16,0,-0.18]];
+  legPos.forEach(([x,,z])=>{
+    const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.06,0.5,6),white);
+    leg.position.set(x,0.25,z); g.add(leg);
+    const hoof=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.08,6),darkW);
+    hoof.position.set(x,0.0,z); g.add(hoof);
+  });
+  // Tail
+  const tailColors=[pink,purple,blue];
+  [[0,0.55,0.02],[0.05,0.42,-0.06],[-0.05,0.3,-0.1]].forEach(([x,y,z],i)=>{
+    const t=new THREE.Mesh(new THREE.SphereGeometry(0.1,6,5),tailColors[i]);
+    t.position.set(x,y,-0.32+z); t.scale.set(0.8,1.3,0.7); g.add(t);
+  });
+  // Body glow aura
+  const aura=new THREE.Mesh(new THREE.SphereGeometry(0.55,8,8),
+    new THREE.MeshLambertMaterial({color:0xffd0ff,transparent:true,opacity:0.08,emissive:0xffaaff,emissiveIntensity:0.2}));
+  aura.position.y=0.65; g.add(aura);
+
+  g.userData={hornGlow,aura};
+  g.position.set(0,0,0);
+  return g;
+}
+
+// =========== NPC BUILDERS ===========
+function buildNPC(nd){
+  const g=new THREE.Group();
+  const c=new THREE.Color(nd.color);
+  const mat=new THREE.MeshLambertMaterial({color:c,emissive:c,emissiveIntensity:0.25});
+  const skin=new THREE.MeshLambertMaterial({color:0xffe8d0});
+  const white=new THREE.MeshLambertMaterial({color:0xffffff});
+  const black=new THREE.MeshLambertMaterial({color:0x111111});
+  const dark=new THREE.MeshLambertMaterial({color:new THREE.Color(nd.color).multiplyScalar(0.4)});
+
+  if(nd.world===0){ // Dragon
+    const body=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.52,1.3,8),mat);
+    body.position.y=0.8; g.add(body);
+    const head=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.58,0.68),mat);
+    head.position.y=1.78; g.add(head);
+    const snout=new THREE.Mesh(new THREE.BoxGeometry(0.36,0.26,0.42),
+      new THREE.MeshLambertMaterial({color:new THREE.Color(nd.color).offsetHSL(0,0,0.15)}));
+    snout.position.set(0,1.67,0.44); g.add(snout);
+    [-0.18,0.18].forEach(x=>{
+      const ew=new THREE.Mesh(new THREE.SphereGeometry(0.09,6,6),white);
+      ew.position.set(x,1.84,0.28); g.add(ew);
+      const ep=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),black);
+      ep.position.set(x,1.84,0.35); g.add(ep);
+    });
+    [-1,1].forEach(s=>{
+      const wing=new THREE.Mesh(new THREE.ConeGeometry(0.52,1.1,4),dark);
+      wing.position.set(s*0.72,1.2,0); wing.rotation.z=s*0.7; g.add(wing);
+    });
+    const tail=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.02,1.2,6),mat);
+    tail.position.set(0,0.5,0.62); tail.rotation.x=0.7; g.add(tail);
+    [[-0.15,2.16],[0.15,2.16]].forEach(([x,y])=>{
+      const h=new THREE.Mesh(new THREE.ConeGeometry(0.06,0.3,5),dark);
+      h.position.set(x,y,0); g.add(h);
+    });
+  } else if(nd.world===1){ // Fairy
+    const body=new THREE.Mesh(new THREE.SphereGeometry(0.22,8,8),mat);
+    body.position.y=1.2; g.add(body);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(0.2,10,10),skin);
+    head.position.y=1.62; g.add(head);
+    [-1,1].forEach(s=>{
+      const wing=new THREE.Mesh(new THREE.ConeGeometry(0.45,0.72,4),
+        new THREE.MeshLambertMaterial({color:0xffcc88,transparent:true,opacity:0.65,emissive:0xff8800,emissiveIntensity:0.3}));
+      wing.position.set(s*0.42,1.32,0); wing.rotation.z=s*0.5; wing.rotation.x=-0.3; g.add(wing);
+    });
+    const hair=new THREE.Mesh(new THREE.SphereGeometry(0.22,8,8),
+      new THREE.MeshLambertMaterial({color:0xff4400,emissive:0xff2200,emissiveIntensity:0.3}));
+    hair.position.y=1.72; hair.scale.set(1,0.6,1); g.add(hair);
+    [-0.1,0.1].forEach(x=>{
+      const ew=new THREE.Mesh(new THREE.SphereGeometry(0.06,6,6),white);
+      ew.position.set(x,1.64,0.17); g.add(ew);
+      const ep=new THREE.Mesh(new THREE.SphereGeometry(0.035,6,6),black);
+      ep.position.set(x,1.64,0.21); g.add(ep);
+    });
+    const wand=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.8,6),
+      new THREE.MeshLambertMaterial({color:0xffdd00,emissive:0xffaa00,emissiveIntensity:0.5}));
+    wand.position.set(0.42,1.22,0); wand.rotation.z=-0.5; g.add(wand);
+    const star=new THREE.Mesh(new THREE.SphereGeometry(0.1,6,6),
+      new THREE.MeshLambertMaterial({color:0xffff00,emissive:0xffee00,emissiveIntensity:0.8}));
+    star.position.set(0.72,1.57,0); g.add(star);
+  } else if(nd.world===2){ // Crystal King
+    const robe=new THREE.Mesh(new THREE.CylinderGeometry(0.44,0.62,1.4,8),mat);
+    robe.position.y=0.7; g.add(robe);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(0.3,12,12),skin);
+    head.position.y=1.62; g.add(head);
+    const crown=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.3,0.25,6),
+      new THREE.MeshLambertMaterial({color:0xffd700,emissive:0xffaa00,emissiveIntensity:0.5}));
+    crown.position.y=1.97; g.add(crown);
+    for(let i=0;i<6;i++){
+      const spike=new THREE.Mesh(new THREE.ConeGeometry(0.04,0.22,4),
+        new THREE.MeshLambertMaterial({color:0xffd700,emissive:0xffcc00,emissiveIntensity:0.7}));
+      spike.position.set(Math.cos(i/6*Math.PI*2)*0.22,2.17,Math.sin(i/6*Math.PI*2)*0.22);
+      g.add(spike);
+    }
+    const scepter=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,1.05,6),
+      new THREE.MeshLambertMaterial({color:0x88ccff}));
+    scepter.position.set(0.62,1.02,0); g.add(scepter);
+    const crystal=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.36,5),
+      new THREE.MeshLambertMaterial({color:0x44aaff,transparent:true,opacity:0.8,emissive:0x0066ff,emissiveIntensity:0.5}));
+    crystal.position.set(0.62,1.64,0); g.add(crystal);
+    [-0.12,0.12].forEach(x=>{
+      const ew=new THREE.Mesh(new THREE.SphereGeometry(0.08,6,6),white);
+      ew.position.set(x,1.64,0.26); g.add(ew);
+      const ep=new THREE.Mesh(new THREE.SphereGeometry(0.045,6,6),black);
+      ep.position.set(x,1.64,0.32); g.add(ep);
+    });
+  } else if(nd.world===3){ // Clock
+    const body=new THREE.Mesh(new THREE.CylinderGeometry(0.52,0.52,0.26,12),mat);
+    body.position.y=1.32; g.add(body);
+    const face=new THREE.Mesh(new THREE.CircleGeometry(0.5,12),
+      new THREE.MeshLambertMaterial({color:0xfff8e0}));
+    face.position.set(0,1.32,0.14); g.add(face);
+    for(let i=0;i<12;i++){
+      const dot=new THREE.Mesh(new THREE.SphereGeometry(0.035,4,4),black);
+      dot.position.set(Math.sin(i/12*Math.PI*2)*0.4,1.32+Math.cos(i/12*Math.PI*2)*0.4,0.16);
+      g.add(dot);
+    }
+    const h1=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.36,0.05),black);
+    h1.position.set(0.1,1.49,0.17); h1.rotation.z=-0.4; g.add(h1);
+    const h2=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.29,0.05),black);
+    h2.position.set(-0.08,1.44,0.17); h2.rotation.z=1.2; g.add(h2);
+    [-0.3,0.3].forEach(x=>{
+      const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.92,6),mat);
+      leg.position.set(x,0.66,0); g.add(leg);
+      const foot=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.1,0.25),dark);
+      foot.position.set(x,0.16,0.05); g.add(foot);
+    });
+    [-0.13,0.13].forEach(x=>{
+      const ew=new THREE.Mesh(new THREE.SphereGeometry(0.065,6,6),
+        new THREE.MeshLambertMaterial({color:0xffcc00,emissive:0xffaa00,emissiveIntensity:0.5}));
+      ew.position.set(x,1.4,0.19); g.add(ew);
+    });
+    for(let i=0;i<5;i++){
+      const a=(i/4-0.5)*0.5;
+      const sm=new THREE.Mesh(new THREE.SphereGeometry(0.025,4,4),black);
+      sm.position.set(Math.sin(a)*0.15,1.22+Math.cos(a)*0.04-0.04,0.19); g.add(sm);
+    }
+  } else { // Flower
+    const stem=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,1.85,8),
+      new THREE.MeshLambertMaterial({color:0x22aa44}));
+    stem.position.y=0.92; g.add(stem);
+    for(let i=0;i<8;i++){
+      const petal=new THREE.Mesh(new THREE.SphereGeometry(0.36,8,6),
+        new THREE.MeshLambertMaterial({color:i%2===0?0xff88cc:0xffcc44,
+          emissive:i%2===0?0xff44aa:0xffaa00,emissiveIntensity:0.3}));
+      petal.position.set(Math.cos(i/8*Math.PI*2)*0.56,1.97,Math.sin(i/8*Math.PI*2)*0.56);
+      petal.scale.set(1,0.5,1); g.add(petal);
+    }
+    const center=new THREE.Mesh(new THREE.SphereGeometry(0.38,12,12),
+      new THREE.MeshLambertMaterial({color:0xffdd00,emissive:0xffbb00,emissiveIntensity:0.4}));
+    center.position.y=1.97; g.add(center);
+    [-0.13,0.13].forEach(x=>{
+      const ew=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,6),white);
+      ew.position.set(x,2.02,0.36); g.add(ew);
+      const ep=new THREE.Mesh(new THREE.SphereGeometry(0.04,6,6),black);
+      ep.position.set(x,2.02,0.41); g.add(ep);
+    });
+    for(let i=0;i<5;i++){
+      const a=(i/4-0.5)*0.55;
+      const sm=new THREE.Mesh(new THREE.SphereGeometry(0.025,4,4),black);
+      sm.position.set(Math.sin(a)*0.18,1.83+Math.cos(a)*0.05-0.05,0.39); g.add(sm);
+    }
+    [-1,1].forEach(s=>{
+      const leaf=new THREE.Mesh(new THREE.SphereGeometry(0.25,6,6),
+        new THREE.MeshLambertMaterial({color:0x33cc55}));
+      leaf.position.set(s*0.42,1.12,0); leaf.scale.set(1,0.4,0.6); g.add(leaf);
+    });
+  }
+
+  const glow=new THREE.Mesh(new THREE.SphereGeometry(0.95,8,8),
+    new THREE.MeshLambertMaterial({color:c,transparent:true,opacity:0.1}));
+  glow.position.y=1.0; g.add(glow);
+  g.userData={npc:nd,glow};
+  return g;
+}
+
+function makeTree(x,z,col){
+  const g=new THREE.Group();
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.22,1.4,6),
+    new THREE.MeshLambertMaterial({color:0x5c3d1e}));
+  trunk.position.y=0.7; g.add(trunk);
+  [[1.6,1.1],[2.3,0.9],[3.0,0.7]].forEach(([y,r])=>{
+    const leaves=new THREE.Mesh(new THREE.ConeGeometry(r,1.1,7),
+      new THREE.MeshLambertMaterial({color:col}));
+    leaves.position.y=y; g.add(leaves);
+  });
+  g.position.set(x,0,z); return g;
+}
+
+function makeBird(){
+  const g=new THREE.Group();
+  const mat=new THREE.MeshLambertMaterial({color:0xffffff});
+  const b=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,6),mat);
+  const wL=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.02,0.07),mat);
+  const wR=wL.clone();
+  wL.position.set(-0.12,0,0); wR.position.set(0.12,0,0);
+  g.add(b); g.add(wL); g.add(wR);
+  g.userData.wL=wL; g.userData.wR=wR; return g;
+}
+
+// =========== BUILD WORLD ===========
+function build(idx){
+  const w=WORLDS[idx];
+  scene.background=new THREE.Color(w.sky);
+  scene.fog=new THREE.FogExp2(w.fog,0.03);
+  worldObjs.forEach(o=>scene.remove(o));
+  worldObjs=[]; npcList=[]; floaters=[]; birds=[];
+
+  const al=new THREE.AmbientLight(w.amb,1.7);
+  const dl=new THREE.DirectionalLight(0xffffff,0.8);
+  dl.position.set(8,15,5);
+  scene.add(al); scene.add(dl);
+  worldObjs.push(al,dl);
+
+  // Ground
+  const gr=new THREE.Mesh(new THREE.PlaneGeometry(100,100),
+    new THREE.MeshLambertMaterial({color:w.ground}));
+  gr.rotation.x=-Math.PI/2; scene.add(gr); worldObjs.push(gr);
+
+  // Sea
+  if(w.hasSea){
+    const sea=new THREE.Mesh(new THREE.PlaneGeometry(35,18),
+      new THREE.MeshLambertMaterial({color:idx===4?0x00bbcc:0x1155aa,transparent:true,opacity:0.7}));
+    sea.rotation.x=-Math.PI/2; sea.position.set(-14,0.05,-18);
+    sea.userData.isSea=true; scene.add(sea); worldObjs.push(sea); floaters.push(sea);
+  }
+
+  // Structures
+  for(let i=0;i<18;i++){
+    const h=Math.random()*5+1;
+    const m=new THREE.Mesh(new THREE.BoxGeometry(1+Math.random()*0.8,h,1+Math.random()*0.8),
+      new THREE.MeshLambertMaterial({color:new THREE.Color(w.ground).offsetHSL(0,0,Math.random()*0.2)}));
+    const rx=(Math.random()-.5)*44, rz=(Math.random()-.5)*44;
+    if(Math.abs(rx)<7&&Math.abs(rz)<9) continue;
+    m.position.set(rx,h/2,rz); scene.add(m); worldObjs.push(m);
+  }
+
+  // Crystals
+  if(idx===2){
+    for(let i=0;i<12;i++){
+      const h=Math.random()*4+1.5;
+      const cr=new THREE.Mesh(new THREE.CylinderGeometry(0,0.28,h,5),
+        new THREE.MeshLambertMaterial({color:0x66ccff,transparent:true,opacity:0.75,emissive:0x1155aa,emissiveIntensity:0.4}));
+      cr.position.set((Math.random()-.5)*35,h/2,(Math.random()-.5)*35);
+      if(Math.abs(cr.position.x)<7&&Math.abs(cr.position.z)<9) continue;
+      scene.add(cr); worldObjs.push(cr);
+    }
+  }
+
+  // Gears (world 3)
+  if(idx===3){
+    for(let i=0;i<6;i++){
+      const r=0.8+Math.random()*1.5;
+      const gear=new THREE.Mesh(new THREE.CylinderGeometry(r,r,0.3,Math.floor(8+r*4)),
+        new THREE.MeshLambertMaterial({color:0x886699,emissive:0x443366,emissiveIntensity:0.3}));
+      gear.position.set((Math.random()-.5)*20,r,(Math.random()-.5)*20);
+      gear.userData.isGear=true; scene.add(gear); worldObjs.push(gear); floaters.push(gear);
+    }
+  }
+
+  // Trees
+  if(w.hasTrees){
+    const tc=idx===4?0x44cc44:idx===1?0xcc5500:0x2d7a3d;
+    for(let i=0;i<16;i++){
+      const tx=(Math.random()-.5)*44, tz=(Math.random()-.5)*44;
+      if(Math.abs(tx)<7&&Math.abs(tz)<9) continue;
+      const t=makeTree(tx,tz,tc); scene.add(t); worldObjs.push(t);
+    }
+  }
+
+  // Orbs
+  for(let i=0;i<8;i++){
+    const r=Math.random()*0.28+0.1;
+    const c=new THREE.Color(w.nc);
+    const orb=new THREE.Mesh(new THREE.SphereGeometry(r,8,8),
+      new THREE.MeshLambertMaterial({color:c,emissive:c,emissiveIntensity:0.5}));
+    orb.position.set((Math.random()-.5)*24,r+Math.random()*3,(Math.random()-.5)*24);
+    scene.add(orb); worldObjs.push(orb); floaters.push(orb);
+  }
+
+  // Birds
+  if(w.hasBirds){
+    for(let i=0;i<5;i++){
+      const b=makeBird();
+      b.position.set((Math.random()-.5)*26,4+Math.random()*4,(Math.random()-.5)*26);
+      b.userData.speed=0.3+Math.random()*0.3;
+      b.userData.dir=Math.random()*Math.PI*2;
+      b.userData.fp=Math.random()*Math.PI*2;
+      scene.add(b); worldObjs.push(b); birds.push(b);
+    }
+  }
+
+  // NPCs
+  NPCS.filter(n=>n.world===idx).forEach(nd=>{
+    const g=buildNPC(nd);
+    g.position.set(...nd.pos);
+    scene.add(g); worldObjs.push(g); npcList.push(g);
+  });
+
+  // Portal
+  const nw=WORLDS[(idx+1)%WORLDS.length];
+  const portal=new THREE.Mesh(new THREE.TorusGeometry(1.6,0.16,12,40),
+    new THREE.MeshLambertMaterial({color:new THREE.Color(nw.nc),emissive:new THREE.Color(nw.nc),emissiveIntensity:1.0}));
+  portal.position.set(0,1.6,-15); scene.add(portal); worldObjs.push(portal);
+  const pi=new THREE.Mesh(new THREE.CircleGeometry(1.44,32),
+    new THREE.MeshLambertMaterial({color:new THREE.Color(nw.sky),transparent:true,opacity:0.6}));
+  pi.position.set(0,1.6,-15.01); scene.add(pi); worldObjs.push(pi);
+
+  // Luna
+  if(lunaMesh) scene.remove(lunaMesh);
+  lunaMesh=buildLuna();
+  lunaMesh.position.set(0,0,3);
+  lunaAngle=Math.PI;
+  scene.add(lunaMesh);
+
+  // HUD
+  document.getElementById('wname').textContent=w.name;
+  for(let i=0;i<5;i++){
+    const d=document.getElementById('d'+i);
+    if(d) d.className='dot'+(i<idx?' v':i===idx?' c':'');
+  }
+
+  if(audioCtx&&soundEnabled) playBg(idx);
+  setTimeout(()=>narrate(w.story),1200);
+}
+
+// =========== PUZZLES ===========
+function buildPipePuzzle(onWin){
+  const area=document.getElementById('pz-area'); area.innerHTML='';
+
+  // Simple 3x3 pipe puzzle — rotate pieces to connect left to right
+  // Each cell shows direction arrows, goal: connect the blue path from start to end
+  const SIZE=3;
+  // Types: 0=horizontal, 1=vertical, 2=corner-LB, 3=corner-RB, 4=corner-LT, 5=corner-RT, 6=T-shape
+  const SYMBOLS=[
+    ['--','|','L ','J ','r ','F ','T '],
+  ];
+
+  // Pre-built solvable puzzle — solution is rotation state
+  // Grid of {type, rot, solved_rot}
+  const PUZZLE=[
+    [{t:0,r:1,s:0},{t:5,r:2,s:0},{t:0,r:1,s:0}],
+    [{t:1,r:0,s:0},{t:6,r:3,s:0},{t:1,r:2,s:0}],
+    [{t:0,r:1,s:0},{t:2,r:1,s:0},{t:0,r:1,s:0}],
+  ];
+
+  // Visual: use colored SVG pipes
+  const COLORS=['#5dcaa5','#9b59b6','#e74c9f','#44aaff','#ffaa00'];
+  let currentColor=0;
+
+  // Simple approach: 3x3 grid of buttons, each click rotates
+  // Show as colored arrows indicating pipe direction
+  // Winning condition: specific combination reached
+
+  const instructions=document.createElement('div');
+  instructions.style.cssText='font-size:13px;color:#c39bd3;margin-bottom:12px;line-height:1.5;';
+  instructions.innerHTML='<b style="color:#f8c8ff">מטרה:</b> סובבי את הצינורות כך שנוצר נתיב רציף מ-<span style="color:#5dcaa5">&#9654; התחלה</span> עד <span style="color:#e74c9f">&#11044; סוף</span>.<br>לחצי על כל תא לסיבוב הצינור.';
+  area.appendChild(instructions);
+
+  const grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:repeat(4,60px);gap:4px;margin:0 auto;width:fit-content;';
+
+  // 4 columns: Start + 3 cells + End indicator
+  // Actually build a simple 3-cell linear puzzle with bends
+  // Each cell can be: straight(-), bend-down(r), bend-up(L), T
+  const PIPE_TYPES=[
+    {name:'ישר',sym:'&#9135;',connects:{L:true,R:true,T:false,B:false},color:'#5dcaa5'},
+    {name:'פינה מטה',sym:'&#8628;',connects:{L:false,R:true,T:false,B:true},color:'#9b59b6'},
+    {name:'פינה מעלה',sym:'&#8629;',connects:{L:false,R:true,T:true,B:false},color:'#44aaff'},
+    {name:'T',sym:'&#10010;',connects:{L:true,R:true,T:false,B:true},color:'#ffaa00'},
+  ];
+
+  // Simple 3-row, 3-col puzzle with known solution
+  const CELLS=[
+    {type:0,rot:1},{type:1,rot:2},{type:0,rot:0},
+    {type:1,rot:0},{type:3,rot:1},{type:1,rot:0},
+    {type:0,rot:1},{type:2,rot:3},{type:0,rot:0},
+  ];
+  const SOLVED=[0,1,0, 1,0,1, 0,3,0]; // rot values for solution
+
+  // Shuffle rotations
+  CELLS.forEach(c=>{c.rot=Math.floor(Math.random()*4);});
+
+  const container=document.createElement('div');
+  container.style.cssText='display:grid;grid-template-columns:repeat(3,64px);gap:6px;margin:8px auto;width:fit-content;';
+
+  const cellEls=[];
+  CELLS.forEach((cell,i)=>{
+    const el=document.createElement('div');
+    el.style.cssText='width:64px;height:64px;background:rgba(155,89,182,0.2);border:2px solid #9b59b6;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:28px;transition:all 0.2s;user-select:none;';
+    const arrows=['&#8594;','&#8595;','&#8592;','&#8593;'];
+    function update(){
+      el.innerHTML='<span style="display:inline-block;transform:rotate('+cell.rot*90+'deg);color:#5dcaa5;font-size:32px">&#8594;</span>';
+      if(cell.type===1) el.innerHTML='<span style="display:inline-block;transform:rotate('+cell.rot*90+'deg);color:#9b59b6;font-size:28px">&#8627;</span>';
+      if(cell.type===2) el.innerHTML='<span style="display:inline-block;transform:rotate('+cell.rot*90+'deg);color:#44aaff;font-size:28px">&#8626;</span>';
+      if(cell.type===3) el.innerHTML='<span style="display:inline-block;transform:rotate('+cell.rot*90+'deg);color:#ffaa00;font-size:28px">&#10010;</span>';
+    }
+    update();
+    el.onclick=()=>{
+      sfx('click');
+      cell.rot=(cell.rot+1)%4;
+      update();
+      el.style.background='rgba(93,202,165,0.25)';
+      setTimeout(()=>el.style.background='rgba(155,89,182,0.2)',300);
+      // Check: count matching rotations
+      const matches=CELLS.filter((c,j)=>c.rot===SOLVED[j]).length;
+      if(matches>=7){ // 7 out of 9 correct = win
+        sfx('win');
+        cellEls.forEach(e=>e.style.borderColor='#5dcaa5');
+        document.getElementById('pz-fb').textContent='v הצינורות מחוברים! המים זורמים!';
+        document.getElementById('pz-fb').className='ok';
+        setTimeout(onWin,1500);
+      }
+    };
+    cellEls.push(el);
+    container.appendChild(el);
+  });
+
+  // Labels
+  const startLabel=document.createElement('div');
+  startLabel.style.cssText='text-align:center;font-size:12px;color:#5dcaa5;margin-bottom:4px;';
+  startLabel.innerHTML='&#9654; קלט &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; פלט &#11044;';
+  area.appendChild(startLabel);
+  area.appendChild(container);
+
+  const tip=document.createElement('div');
+  tip.style.cssText='font-size:11px;color:#888;margin-top:8px;text-align:center;';
+  tip.textContent='לחצי על כל תא לסובב את הצינור. כאשר רוב הצינורות מיושרים -- תנצחי!';
+  area.appendChild(tip);
+}
+
+function buildGearPuzzle(onWin){
+  const area=document.getElementById('pz-area'); area.innerHTML='';
+
+  const inst=document.createElement('div');
+  inst.style.cssText='font-size:13px;color:#c39bd3;margin-bottom:12px;line-height:1.5;';
+  inst.innerHTML='<b style="color:#f8c8ff">מטרה:</b> סדרי את הגלגלים <b style="color:#ff9944">מגדול לקטן</b> בחריצים 1 עד 4.<br>לחצי על גלגל לבחור (יאיר), ואז על חריץ למקם אותו.';
+  area.appendChild(inst);
+
+  const GEARS=[
+    {id:0,label:'גדול',size:58,color:'#ff9944',order:0},
+    {id:1,label:'בינוני',size:44,color:'#9b59b6',order:1},
+    {id:2,label:'קטן',size:32,color:'#44aaff',order:2},
+    {id:3,label:'זעיר',size:22,color:'#5dcaa5',order:3},
+  ];
+  const shuffled=[...GEARS].sort(()=>Math.random()-0.5);
+  const slots=new Array(4).fill(null);
+  let selected=null;
+  const slotEls=[];
+
+  // Slots
+  const slotLabels=document.createElement('div');
+  slotLabels.style.cssText='display:flex;gap:8px;justify-content:center;margin-bottom:3px;';
+  [1,2,3,4].forEach(n=>{
+    const l=document.createElement('div');
+    l.style.cssText='width:70px;text-align:center;font-size:11px;color:#9b59b6;';
+    l.textContent='חריץ '+n; slotLabels.appendChild(l);
+  });
+  area.appendChild(slotLabels);
+
+  const slotsRow=document.createElement('div');
+  slotsRow.style.cssText='display:flex;gap:8px;justify-content:center;margin-bottom:14px;';
+  for(let i=0;i<4;i++){
+    const s=document.createElement('div');
+    s.style.cssText='width:70px;height:70px;border:2px dashed #9b59b6;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(155,89,182,0.1);cursor:pointer;transition:all 0.2s;';
+    s.innerHTML='<span style="font-size:12px;color:#9b59b6;">'+(i+1)+'</span>';
+    const si=i;
+    s.onclick=()=>{
+      if(selected===null){
+        document.getElementById('pz-fb').textContent='קודם בחרי גלגל!';
+        document.getElementById('pz-fb').className='fail';
+        return;
+      }
+      if(slots[si]!==null) return;
+      slots[si]=selected;
+      const g=shuffled[selected];
+      s.innerHTML='<div style="width:'+g.size+'px;height:'+g.size+'px;border-radius:50%;background:'+g.color+';border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:bold;">'+g.label+'</div>';
+      s.style.borderColor=g.color; s.style.borderStyle='solid';
+      const gEl=document.querySelector('[data-gear="'+selected+'"]');
+      if(gEl){gEl.style.opacity='0.3';gEl.style.pointerEvents='none';}
+      selected=null;
+      document.querySelectorAll('.gp2').forEach(p=>p.style.boxShadow='none');
+      document.getElementById('pz-fb').textContent='';
+      sfx('click');
+      if(slots.every(v=>v!==null)){
+        const ok=slots.every((v,i)=>shuffled[v].order===i);
+        if(ok){
+          sfx('win');
+          slotEls.forEach(s=>s.style.borderColor='#5dcaa5');
+          document.getElementById('pz-fb').textContent='v המכונה עובדת!';
+          document.getElementById('pz-fb').className='ok';
+          setTimeout(onWin,1500);
+        } else {
+          sfx('fail');
+          document.getElementById('pz-fb').innerHTML='x לא נכון. הסדר הנכון: <b style="color:#ff9944">גדול</b> > <b style="color:#9b59b6">בינוני</b> > <b style="color:#44aaff">קטן</b> > <b style="color:#5dcaa5">זעיר</b>. נסי שוב!';
+          document.getElementById('pz-fb').className='fail';
+          slots.fill(null); selected=null;
+          slotEls.forEach((s,i)=>{
+            s.innerHTML='<span style="font-size:12px;color:#9b59b6;">'+(i+1)+'</span>';
+            s.style.borderColor='#9b59b6'; s.style.borderStyle='dashed';
+          });
+          document.querySelectorAll('.gp2').forEach(p=>{p.style.opacity='1';p.style.pointerEvents='auto';p.style.boxShadow='none';});
+        }
+      }
+    };
+    slotEls.push(s); slotsRow.appendChild(s);
+  }
+  area.appendChild(slotsRow);
+
+  const trayLabel=document.createElement('div');
+  trayLabel.style.cssText='font-size:12px;color:#c39bd3;margin-bottom:8px;text-align:center;';
+  trayLabel.textContent='בחרי גלגל:';
+  area.appendChild(trayLabel);
+
+  const tray=document.createElement('div');
+  tray.style.cssText='display:flex;gap:10px;justify-content:center;flex-wrap:wrap;';
+  shuffled.forEach((g,i)=>{
+    const piece=document.createElement('div');
+    piece.className='gp2';
+    piece.style.cssText='width:70px;height:70px;border:2px solid '+g.color+';border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);cursor:pointer;transition:all 0.2s;flex-direction:column;gap:2px;';
+    piece.innerHTML='<div style="width:'+g.size+'px;height:'+g.size+'px;border-radius:50%;background:'+g.color+';display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:bold;">'+g.label+'</div>';
+    piece.dataset.gear=i;
+    piece.onclick=()=>{
+      if(piece.style.opacity==='0.3') return;
+      document.querySelectorAll('.gp2').forEach(p=>p.style.boxShadow='none');
+      selected=i;
+      piece.style.boxShadow='0 0 12px '+g.color+', 0 0 4px white';
+      sfx('click');
+    };
+    tray.appendChild(piece);
+  });
+  area.appendChild(tray);
+}
+
+// =========== DIALOG & PUZZLE FLOW ===========
+function notify(msg){
+  const n=document.getElementById('notif');
+  n.textContent=msg; n.classList.add('show');
+  setTimeout(()=>n.classList.remove('show'),2800);
+}
+
+function updateHUD(){
+  document.getElementById('sp-bar').style.width=sp_val+'%';
+  document.getElementById('mp-bar').style.width=mp_val+'%';
+  document.getElementById('sparks').textContent='ניצוצות: '+sparks+'/5 \u2728';
+}
+
+function showSparkPop(msg){
+  const el=document.getElementById('spark-pop');
+  el.innerHTML='<div style="font-size:22px">\u2728</div><div>'+msg+'</div>';
+  el.style.display='block';
+  setTimeout(()=>el.style.display='none',3500);
+}
+
+function startDialog(npc){
+  if(dialogOn||puzzleOn) return;
+  sfx('click');
+  curNPC=npc; dialogOn=true; dialogReady=false;
+  dQueue=npc.dialog; dIdx=0;
+  document.getElementById('dlg-portrait').textContent=npc.emoji;
+  showLine(0);
+}
+
+function showLine(idx){
+  dialogReady=false;
+  document.getElementById('dlg-name').textContent=curNPC.name+' אומר:';
+  document.getElementById('dlg-text').textContent=dQueue[idx];
+  document.getElementById('dlg-hint').textContent='מדבר...';
+  document.getElementById('dialog').style.display='block';
+  document.getElementById('interact-btn').style.display='block';
+  speakAndWait(dQueue[idx],curNPC.vi,()=>{
+    dialogReady=true;
+    const last=idx===dQueue.length-1;
+    document.getElementById('dlg-hint').textContent=last?'לחצי E / לחצי כאן לחידה...':'לחצי E / לחצי כאן להמשך...';
+  });
+}
+
+function nextDialog(){
+  if(speechSynthesis.speaking){
+    stopSpeech(); dialogReady=true;
+    const last=dIdx===dQueue.length-1;
+    document.getElementById('dlg-hint').textContent=last?'לחצי E לחידה...':'לחצי E להמשך...';
+    return;
+  }
+  if(!dialogReady) return;
+  dIdx++;
+  if(dIdx<dQueue.length){ showLine(dIdx); }
+  else {
+    document.getElementById('dialog').style.display='none';
+    dialogOn=false; dialogReady=false;
+    if(curNPC&&curNPC.puzzle) openPuzzle(curNPC.puzzle);
+  }
+}
+
+function openPuzzle(pz){
+  puzzleOn=true;
+  document.getElementById('pz-title').textContent=pz.title;
+  document.getElementById('pz-desc').textContent=pz.desc;
+  document.getElementById('pz-fb').textContent='';
+  document.getElementById('pz-fb').className='';
+  document.getElementById('pz-area').innerHTML='';
+  const onWin=()=>winPuzzle(pz);
+  if(pz.type==='pipes') buildPipePuzzle(onWin);
+  else if(pz.type==='gears') buildGearPuzzle(onWin);
+  else if(pz.type==='q'){
+    const ct=document.getElementById('pz-area');
+    pz.opts.forEach((o,i)=>{
+      const b=document.createElement('button');
+      b.className='q-btn'; b.textContent=o;
+      b.onclick=()=>{
+        if(i===pz.cor){sfx('win');winPuzzle(pz);}
+        else{sfx('fail');
+          document.getElementById('pz-fb').textContent='x נסי שוב!';
+          document.getElementById('pz-fb').className='fail';
+          mp_val=Math.max(10,mp_val-8); updateHUD();
+        }
+      };
+      ct.appendChild(b);
+    });
+    setTimeout(()=>speakAndWait(pz.desc,curNPC?curNPC.vi:5,()=>{}),300);
+  }
+  const cl=document.createElement('button');
+  cl.className='q-btn'; cl.textContent='x סגור';
+  cl.style.cssText='margin-top:10px;background:rgba(100,0,0,.3);border-color:#a32d2d;color:#f09595;';
+  cl.onclick=()=>{stopSpeech();document.getElementById('puzzle').style.display='none';puzzleOn=false;};
+  document.getElementById('pz-area').appendChild(cl);
+  document.getElementById('puzzle').style.display='block';
+}
+
+function winPuzzle(pz){
+  sparks++; mp_val=Math.min(100,mp_val+20); sp_val=Math.min(100,sp_val+10); updateHUD();
+  document.getElementById('pz-fb').textContent='v ניצוץ נאסף!';
+  document.getElementById('pz-fb').className='ok';
+  showSparkPop('ניצוץ '+sparks+' מתוך 5 נאסף!');
+  if(curNPC) curNPC._done=true;
+  const reward=pz.reward||'ניצוץ הקרן חזר!';
+  setTimeout(()=>{
+    speakAndWait(reward,curNPC?curNPC.vi:5,()=>{
+      setTimeout(()=>{
+        document.getElementById('puzzle').style.display='none';
+        puzzleOn=false;
+        if(sparks>=5) setTimeout(()=>narrate('לונה -- כל ניצוצות הקרן חזרו! הקרן מאירה שוב בקסם! המסע הסתיים בניצחון!',9000),800);
+      },800);
+    });
+  },500);
+}
+
+function interact(){
+  if(!audioCtx){initAudio();playBg(worldIdx);}
+  if(!gameActive||puzzleOn) return;
+  if(dialogOn){nextDialog();return;}
+  let nearest=null,nd=99;
+  npcList.forEach(n=>{
+    const d=lunaMesh.position.distanceTo(n.position);
+    if(d<3.5&&d<nd){nd=d;nearest=n;}
+  });
+  if(nearest){startDialog(nearest.userData.npc);return;}
+  if(lunaMesh.position.distanceTo(new THREE.Vector3(0,0,-15))<3.5) goNext();
+}
+
+function goNext(){
+  sfx('portal'); stopSpeech();
+  const fl=document.getElementById('flash'); fl.style.opacity='1';
+  setTimeout(()=>fl.style.opacity='0',400);
+  worldIdx=(worldIdx+1)%WORLDS.length;
+  setTimeout(()=>build(worldIdx),300);
+}
+
+function showQuit(){
+  document.getElementById('qs-sp').textContent=sparks;
+  document.getElementById('quit-screen').style.display='flex';
+  stopBg(); stopSpeech(); gameActive=false;
+}
+function hideQuit(){
+  document.getElementById('quit-screen').style.display='none';
+  gameActive=true;
+  if(audioCtx&&soundEnabled)playBg(worldIdx);
+}
+function quitGame(){
+  stopBg(); stopSpeech();
+  document.getElementById('quit-screen').innerHTML=
+    '<h2 style="color:#f8c8ff">\u{1F984} המסע הסתיים</h2>'+
+    '<p style="color:#c39bd3;font-size:15px">ניצוצות: '+sparks+'/5 \u2728</p>'+
+    '<p style="color:#888;font-size:13px;margin-top:6px">'+(sparks>=5?'לונה הצליחה! הקרן מאירה!':'המסע עוד לא הסתיים...')+'</p>'+
+    '<button onclick="location.reload()" style="background:#9b59b6;padding:12px 26px;border-radius:10px;font-size:14px;cursor:pointer;border:none;color:white;margin-top:14px">\u25BA משחק חדש</button>';
+}
+
+// =========== CONTROLS ===========
+let camPitch=0.3; // camera pitch angle (up/down)
+
+document.addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  if(k==='w'||k==='arrowup')K.w=true;
+  if(k==='s'||k==='arrowdown')K.s=true;
+  if(k==='a'||k==='arrowleft')K.a=true;
+  if(k==='d'||k==='arrowright')K.d=true;
+  if(k==='e'){e.preventDefault();interact();}
+  if(k==='q')goNext();
+  if(k==='escape'){
+    if(locked) document.exitPointerLock();
+    else showQuit();
+  }
+});
+document.addEventListener('keyup',e=>{
+  const k=e.key.toLowerCase();
+  if(k==='w'||k==='arrowup')K.w=false;
+  if(k==='s'||k==='arrowdown')K.s=false;
+  if(k==='a'||k==='arrowleft')K.a=false;
+  if(k==='d'||k==='arrowright')K.d=false;
+});
+
+// Click canvas to lock mouse for camera control
+canvas.addEventListener('click',()=>{
+  if(!audioCtx){initAudio();playBg(worldIdx);}
+  if(!dialogOn&&!puzzleOn&&gameActive&&!locked) canvas.requestPointerLock();
+});
+document.addEventListener('pointerlockchange',()=>{ locked=document.pointerLockElement===canvas; });
+document.addEventListener('mousemove',e=>{
+  if(!locked||!gameActive) return;
+  // Always rotate camera even during dialog — E key handles interaction
+  camYaw-=e.movementX*0.003;
+  camPitch=Math.max(0.1,Math.min(0.7,camPitch+e.movementY*0.002));
+});
+
+window.addEventListener('resize',()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+
+// =========== GAME LOOP ===========
+const fwd=new THREE.Vector3();
+let lunaLegPhase=0;
+
+function loop(){
+  const dt=Math.min(clock.getDelta(),0.05);
+  const t=clock.elapsedTime;
+  let moving=false;
+
+  if(!dialogOn&&!puzzleOn&&gameActive&&lunaMesh){
+    // Move Luna in direction of camera yaw
+    const speed=4.0*dt;
+    let dx=0, dz=0;
+    if(K.w){dx+=Math.sin(camYaw)*speed; dz+=Math.cos(camYaw)*speed; moving=true;}
+    if(K.s){dx-=Math.sin(camYaw)*speed; dz-=Math.cos(camYaw)*speed; moving=true;}
+    if(K.a){dx+=Math.sin(camYaw-Math.PI/2)*speed; dz+=Math.cos(camYaw-Math.PI/2)*speed; moving=true;}
+    if(K.d){dx-=Math.sin(camYaw-Math.PI/2)*speed; dz-=Math.cos(camYaw-Math.PI/2)*speed; moving=true;}
+
+    if(moving){
+      lunaMesh.position.x=Math.max(-37,Math.min(37,lunaMesh.position.x+dx));
+      lunaMesh.position.z=Math.max(-37,Math.min(37,lunaMesh.position.z+dz));
+      // Face direction of movement
+      lunaMesh.rotation.y=Math.atan2(dx,dz);
+      lunaLegPhase+=dt*8;
+    }
+
+    // Gentle body bob
+    lunaMesh.position.y=moving?Math.abs(Math.sin(lunaLegPhase))*0.06:0;
+
+    // Camera follows Luna from behind with pitch
+    const camX=lunaMesh.position.x-Math.sin(camYaw)*camDist*Math.cos(camPitch);
+    const camZ=lunaMesh.position.z-Math.cos(camYaw)*camDist*Math.cos(camPitch);
+    const camY=lunaMesh.position.y+camDist*Math.sin(camPitch);
+    camera.position.set(camX, camY, camZ);
+    camera.lookAt(lunaMesh.position.x, 1.0, lunaMesh.position.z);
+  }
+
+  // Footsteps
+  if(moving&&audioCtx&&soundEnabled){
+    footTimer+=dt;
+    if(footTimer>0.38){sfx('step');footTimer=0;}
+  } else footTimer=0;
+
+  // Luna horn glow pulse
+  if(lunaMesh&&lunaMesh.userData.hornGlow)
+    lunaMesh.userData.hornGlow.material.opacity=0.2+Math.sin(t*2)*0.15;
+
+  // Floaters
+  floaters.forEach((o,i)=>{
+    if(o.userData&&o.userData.isSea) o.position.y=0.05+Math.sin(t*0.5)*0.06;
+    else if(o.userData&&o.userData.isGear) o.rotation.y=t*0.3*(i%2===0?1:-1);
+    else o.position.y=Math.sin(t*0.7+i)*0.5+1.0;
+  });
+
+  // Birds
+  birds.forEach((b,i)=>{
+    b.userData.dir+=(Math.random()-0.5)*0.02;
+    b.position.x+=Math.cos(b.userData.dir)*b.userData.speed*dt;
+    b.position.z+=Math.sin(b.userData.dir)*b.userData.speed*dt;
+    b.position.y=4+Math.sin(t*0.5+i)*0.5;
+    b.rotation.y=-b.userData.dir+Math.PI/2;
+    const flap=Math.sin(t*4+b.userData.fp)*0.3;
+    if(b.userData.wL)b.userData.wL.rotation.z=flap;
+    if(b.userData.wR)b.userData.wR.rotation.z=-flap;
+    if(Math.abs(b.position.x)>24||Math.abs(b.position.z)>24) b.userData.dir+=Math.PI;
+  });
+
+  // NPC animation
+  npcList.forEach(n=>{
+    n.rotation.y=Math.sin(t*0.4)*0.3;
+    if(n.userData.glow) n.userData.glow.scale.setScalar(1+0.1*Math.sin(t*2.5));
+  });
+
+  // Proximity check
+  let near=false;
+  if(lunaMesh){
+    npcList.forEach(n=>{if(lunaMesh.position.distanceTo(n.position)<3.5)near=true;});
+    const portalD=lunaMesh.position.distanceTo(new THREE.Vector3(0,0,-15));
+    const showNear=near||portalD<3.5;
+    document.getElementById('near').style.display=showNear?'block':'none';
+    document.getElementById('interact-btn').style.display=(showNear||dialogOn)?'block':'none';
+    if(portalD<3.5) document.getElementById('near').textContent='לחצי E לעבור לעולם הבא \u2728';
+    else if(near) document.getElementById('near').textContent='לחצי E לשיחה \uD83D\uDCAC';
+  }
+
+  renderer.render(scene,camera);
+}
+
+renderer.setAnimationLoop(loop);
+build(0);
+updateHUD();
+setTimeout(()=>notify('לחצי על המסך -- ואז WASD להזזת לונה!'),800);
+</script>
+</body>
+</html>
